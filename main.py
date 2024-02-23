@@ -42,6 +42,9 @@ def main(stdscr, path: str) -> list:
     curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK)
     curses.init_pair(2, curses.COLOR_GREEN, curses.COLOR_BLACK)
     curses.init_pair(3, curses.COLOR_BLUE, curses.COLOR_BLACK)
+    curses.init_pair(6, curses.COLOR_YELLOW, curses.COLOR_BLACK)
+    curses.init_pair(5, curses.COLOR_CYAN, curses.COLOR_BLACK)
+    curses.init_pair(4, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
     
     #A method for returning the directories
     abspath = os.path.abspath
@@ -61,7 +64,7 @@ def main(stdscr, path: str) -> list:
         return items
 
     # Create a window for the menu
-    menu_win = curses.newwin(sh - 1, sw, 0, 0)  # Adjust height by 1 less than screen height
+    menu_win = curses.newwin(sh - 2, sw, 0, 0)  # Adjust height by 1 less than screen height
 
     # Enable keypad input for the menu window
     menu_win.keypad(True)
@@ -74,11 +77,11 @@ def main(stdscr, path: str) -> list:
 
     # Define variables for scrolling
     start_row = 0
-    visible_rows = min(sh - 1, len(menu_items))  # Adjust for screen height
+    visible_rows = min(sh - 2, len(menu_items))  # Adjust for screen height
 
     # List to store selected options
     selected_options = []
-    bar = curses.newwin(1, sw, sh - 1, 0)
+    bar = curses.newwin(2, sw, sh - 2, 0)
 
     # Main loop
     while True:
@@ -88,8 +91,9 @@ def main(stdscr, path: str) -> list:
         menu_win.refresh()
         bar.clear()
         lendir = len(dir)
-        bar.addstr(0, 0, dir[lendir -sw + 6: ] if sw-6 < lendir else dir)
-        bar.addstr(0, sw-5, "{}%".format("0"+str(percent) if percent < 10 else percent))
+        bar.addstr(0,0, " [{}] selected".format(len(SELECTED)),curses.color_pair(6))
+        bar.addstr(1, 0, ' '+dir[lendir -sw + 6: ] if sw-6 < lendir else dir, curses.color_pair(5))
+        bar.addstr(1, sw-5, "{}%".format("0"+str(percent) if percent < 10 else percent), curses.color_pair(4))
         bar.refresh()
 
         # Display the visible menu items with colors
@@ -188,7 +192,7 @@ def main(stdscr, path: str) -> list:
         elif key == ord('Q'):
             return []
         # Recalculate visible rows based on current screen height and menu items list size
-        visible_rows = min(sh - 1, len(menu_items))
+        visible_rows = min(sh - 2, len(menu_items))
 
     # Clean up
     curses.endwin()
