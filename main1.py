@@ -1,19 +1,6 @@
-import curses
-import os
+import curses, os
 
-def main(stdscr, path: str) -> list:
-    '''
-    Keys:
-        UP(j) / DOWN(k) - Navigation
-        *               - Selecting all options
-        ^               - Unselecting all options
-        e               - Inverse select
-        o               - Open the directory
-        ENTER           - Select the directory
-        q               - Return the selected options and exit
-        Q               - Do not return anything and exit
-        r               - Refresh
-    '''
+def main(stdscr) :
     SELECTED = list()
     # Turn off cursor blinking
     curses.curs_set(0)
@@ -39,13 +26,13 @@ def main(stdscr, path: str) -> list:
     curses.init_color(curses.COLOR_CYAN, 545, 913, 992)  # Cyan
     curses.init_color(curses.COLOR_WHITE, 1000, 1000, 1000)  # White
     curses.init_color(curses.COLOR_BLACK, 100, 100, 100)
+
     curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK)
     curses.init_pair(2, curses.COLOR_GREEN, curses.COLOR_BLACK)
     curses.init_pair(3, curses.COLOR_BLUE, curses.COLOR_BLACK)
-    
-    #A method for returning the directories
+
     abspath = os.path.abspath
-    dir     = abspath(path)
+    dir = abspath('./../../../storage/shared/WhatsApp/')
     def manage_menu_items(dir):
         dirs = ['..'] + sorted(os.listdir(dir))
         items = list()
@@ -67,6 +54,11 @@ def main(stdscr, path: str) -> list:
     menu_win.keypad(True)
 
     # Define menu items with colors
+    #menu_items = [
+    #    ["Option 1", curses.color_pair(1), 0, ''],
+    #    ["Option 2", curses.color_pair(2), 0, ''],
+    #   ["Option 3", curses.color_pair(3), 0, '']
+    #    ]  # Example: 3 options with different colors
     menu_items = manage_menu_items(dir)
 
     # Highlight the first item by default
@@ -92,6 +84,7 @@ def main(stdscr, path: str) -> list:
         bar.addstr(0, sw-5, "{}%".format("0"+str(percent) if percent < 10 else percent))
         bar.refresh()
 
+
         # Display the visible menu items with colors
         for i in range(start_row, min(start_row + visible_rows, len(menu_items))):
             option_text, option_color, option_highlight, Type= menu_items[i]
@@ -108,18 +101,21 @@ def main(stdscr, path: str) -> list:
         key = menu_win.getch()
 
         # Handle user input
-        if key == curses.KEY_UP or key == ord('j'):
+        if key == curses.KEY_UP:
             selected_item = max(0, selected_item - 1)
             if selected_item < start_row:
-                start_row = max(0, start_row - 1)  # Ensure start_row doesn't go negative
-        elif key == curses.KEY_DOWN or key == ord('k'):
+                start_row -= 1
+                menu_win.refresh()  # Refresh menu window after scrolling
+                percent = selected_item
+        elif key == curses.KEY_DOWN:
             selected_item = min(len(menu_items) - 1, selected_item + 1)
             if selected_item >= start_row + visible_rows:
-                start_row = min(len(menu_items) - visible_rows, start_row + 1)  # Ensure start_row doesn't exceed max
+                start_row += 1
+                menu_win.refresh()  # Refresh menu window after scrolling
         elif key == ord('q'):
             # If 'q' is pressed, create a new window at the last line and exit
             break
-        # ENTER for selected a option
+
         elif key == curses.KEY_ENTER or key in [10, 13]:
             if selected_item == 0:
                 continue
@@ -132,29 +128,21 @@ def main(stdscr, path: str) -> list:
                 SELECTED.remove(dir + '/' + menu_items[selected_item][0])
             elif dir + '/' + menu_items[selected_item][0] not in SELECTED:
                 SELECTED.append(dir + '/' + menu_items[selected_item][0])
-        # HOME for goto first option
+
         elif key == curses.KEY_HOME:
             selected_item = 0
-        # END for goto last option
         elif key == curses.KEY_END:
             selected_item = len(menu_items)-1
-        # o for open a directory
         elif key == ord('o'):
             if menu_items[selected_item][3] == True:
-                pre_dir = dir
                 dir = abspath(dir + '/' + menu_items[selected_item][0])
-                try:
-                    menu_items = manage_menu_items(dir)
-                except PermissionError:
-                    dir = pre_dir
-                    menu_items = manage_menu_items(dir)
+                menu_items = manage_menu_items(dir)
                 selected_item= 0
                 selected_options = []
                 for i, j in enumerate(menu_items):
                     if dir + '/' + j[0] in SELECTED:
                         selected_options.append(i)
                         menu_items[i][2] = curses.A_UNDERLINE
-        # * for selecting all
         elif key == ord('*'):
             selected_options = [x for x in range(1, len(menu_items))]
             for i in range(1, len(menu_items)):
@@ -163,37 +151,19 @@ def main(stdscr, path: str) -> list:
                     pass
                 elif dir + '/' + menu_items[i][0] not in SELECTED:
                     SELECTED.append(dir + '/' + menu_items[i][0])
-        # ^ for unselecting all
         elif key == ord('^'):
             selected_options = []
             for i in range(len(menu_items)):
                 menu_items[i][2] = 0
                 if dir + '/' + menu_items[i][0] in SELECTED:
                     SELECTED.remove(dir + '/' + menu_items[i][0])
-        # e for inverse selection
-        elif key == ord('e'):
-            inverse = [x for x in range(1, len(menu_items))]
-            for i in range(1, len(menu_items)):
-                if i in selected_options:
-                    inverse.remove(i)
-                menu_items[i][2] = 0 if menu_items[i][2] != 0 else curses.A_UNDERLINE
-                if dir + '/' + menu_items[i][0] in SELECTED:
-                    SELECTED.remove(dir + '/' + menu_items[i][0])
-                elif dir + '/' + menu_items[i][0] not in SELECTED:
-                    SELECTED.append(dir + '/' + menu_items[i][0])
-        # Refresh the window
-        elif key == ord('r'):
-            menu_win.refresh()
-        # Q for quiting without returning any values
         elif key == ord('Q'):
             return []
-        # Recalculate visible rows based on current screen height and menu items list size
-        visible_rows = min(sh - 1, len(menu_items))
-
+        '''
+        '''
     # Clean up
     curses.endwin()
     return SELECTED
 
 if __name__ == "__main__":
-    result = curses.wrapper(main, '')
-
+    print(curses.wrapper(main))
